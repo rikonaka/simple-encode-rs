@@ -40,11 +40,12 @@ impl Base16 {
     }
 }
 
+const BASE32_ALPHABET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
 pub struct Base32 {}
 
 impl Base32 {
     pub fn encode(input: &[u8]) -> String {
-        const BASE32_ALPHABET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
         let mut encoded = String::new();
         let mut buffer = 0u32;
         let mut bits_left = 0;
@@ -72,7 +73,6 @@ impl Base32 {
         encoded
     }
     pub fn decode(input: &str) -> Result<Vec<u8>> {
-        const BASE32_ALPHABET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
         let mut decoded = Vec::new();
         let mut buffer = 0u32;
         let mut bits_left = 0;
