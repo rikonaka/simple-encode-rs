@@ -399,7 +399,83 @@ impl Base64 {
     }
 }
 
-const BASE85_ALPHABET: &str = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~";
+const BASE85_ALPHABET: &str =
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~";
+
+pub struct Base85 {}
+
+impl Base85 {
+    pub fn encode(input: &[u8]) -> Result<String> {
+        let mut encoded = String::new();
+        let mut buffer = 0u32;
+        let mut buffer_length = 0;
+
+        for &byte in input {
+            buffer = (buffer << 8) | byte as u32;
+            buffer_length += 1;
+            if buffer_length == 4 {
+                for _ in 0..5 {
+                    let index = (buffer / 85u32.pow(4)) as usize;
+                    encoded.push(BASE85_ALPHABET.chars().nth(index).unwrap());
+                    buffer %= 85u32.pow(4);
+                    buffer *= 85;
+                }
+                buffer = 0;
+                buffer_length = 0;
+            }
+        }
+
+        if buffer_length > 0 {
+            for _ in 0..(4 - buffer_length) {
+                buffer <<= 8;
+            }
+            for _ in 0..(buffer_length + 1) {
+                let index = (buffer / 85u32.pow(4)) as usize;
+                encoded.push(BASE85_ALPHABET.chars().nth(index).unwrap());
+                buffer %= 85u32.pow(4);
+                buffer *= 85;
+            }
+        }
+
+        Ok(encoded)
+    }
+    pub fn decode(input: &str) -> Result<Vec<u8>> {
+        let mut decoded = Vec::new();
+        let mut buffer = 0u32;
+        let mut buffer_length = 0;
+        let mut base85_chars = input.chars().rev();
+
+        while let Some(c) = base85_chars.next() {
+            let index = match BASE85_ALPHABET.find(c) {
+                Some(i) => i,
+                None => return Err(DecodeError::new("invalid base85 character").into()),
+            };
+            buffer = buffer * 85 + index as u32;
+            buffer_length += 1;
+            if buffer_length == 5 {
+                for _ in 0..4 {
+                    decoded.push((buffer >> 24) as u8);
+                    buffer <<= 8;
+                }
+                buffer = 0;
+                buffer_length = 0;
+            }
+        }
+
+        if buffer_length > 0 {
+            for _ in 0..(5 - buffer_length) {
+                buffer *= 85;
+            }
+            for _ in 0..(buffer_length - 1) {
+                decoded.push((buffer >> 24) as u8);
+                buffer <<= 8;
+            }
+        }
+
+        decoded.reverse();
+        Ok(decoded)
+    }
+}
 
 const BASE91_ALPHABET: &str =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&()*+,./:;<=>?@[]^_`{|}~\"";
@@ -575,6 +651,15 @@ mod tests {
         let enc = Base64::encode(data)?;
         println!("enc: {}", enc);
         let dec = Base64::decode(&enc)?;
+        assert_eq!(dec, data);
+        Ok(())
+    }
+    #[test]
+    fn base85() -> Result<()> {
+        let data = b"Hello";
+        let enc = Base85::encode(data)?;
+        println!("enc: {}", enc);
+        let dec = Base85::decode(&enc)?;
         assert_eq!(dec, data);
         Ok(())
     }
